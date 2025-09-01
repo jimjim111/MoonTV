@@ -1,8 +1,8 @@
-name: Upstream Sync
+name: Upstream Sync AutoMerge
 
 on:
   schedule:
-    - cron: "0 */6 * * *" # run every 6 hours
+    - cron: "0 */6 * * *" # 每 6 小时同步一次
   workflow_dispatch:
 
 permissions:
@@ -10,36 +10,38 @@ permissions:
   actions: write
 
 jobs:
-  sync_latest_from_upstream:
-    name: Sync latest commits from upstream repo
+  sync:
     runs-on: ubuntu-latest
-    if: ${{ github.event.repository.fork }}
 
     steps:
-      # Step 1: run a standard checkout action
-      - name: Checkout target repo
+      # 1️⃣ Checkout fork repository
+      - name: Checkout fork
         uses: actions/checkout@v4
-
-      # Step 2: run the sync action
-      - name: Sync upstream changes
-        id: sync
-        uses: aormsby/Fork-Sync-With-Upstream-action@v3.4.1
         with:
-          upstream_sync_repo: senshinya/MoonTV
-          upstream_sync_branch: main
-          target_sync_branch: main
-          target_repo_token: ${{ secrets.GITHUB_TOKEN }}
+          fetch-depth: 0  # 获取完整历史
 
-      - name: Sync check
-        if: failure()
+      # 2️⃣ Configure upstream
+      - name: Add upstream remote
         run: |
-          echo "[Error] Due to a change in the workflow file of the upstream repository, GitHub has automatically suspended the scheduled automatic update. You need to manually sync your fork."
-          exit 1
+          git remote add upstream https://github.com/senshinya/MoonTV.git || true
+          git fetch upstream
 
-      - name: Delete workflow runs
-        uses: Mattraks/delete-workflow-runs@main
-        with:
-          token: ${{ secrets.GITHUB_TOKEN }}
-          repository: ${{ github.repository }}
-          retain_days: 0
-          keep_minimum_runs: 2
+      # 3️⃣ Attempt auto merge upstream changes
+      - name: Auto merge upstream changes
+        run: |
+          git checkout main
+          # 尝试自动合并，优先保留 fork 本地修改
+          git merge upstream/main -X ours -m "Auto-merge upstream/main into main" || {
+            echo "⚠️ Complex merge conflict detected. Manual resolution required.";
+            exit 1;
+          }
+
+      # 4️⃣ Push merged changes if successful
+      - name: Push merged changes
+        run: |
+          git push origin main
+
+      # 5️⃣ Success message
+      - name: Success
+        run: echo "✅ Fork successfully synced with upstream. Local commits preserved, simple conflicts auto-resolved."
+
