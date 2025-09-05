@@ -30,8 +30,8 @@ jobs:
       - name: Auto merge upstream changes
         run: |
           git checkout main
-          # 尝试自动合并，优先保留 fork 本地修改
-          git merge upstream/main -X ours -m "Auto-merge upstream/main into main" || {
+          # 尝试自动合并，优先保留 fork 本地修改，允许无关历史
+          git merge upstream/main -X ours --allow-unrelated-histories -m "Auto-merge upstream/main into main" || {
             echo "⚠️ Complex merge conflict detected. Manual resolution required.";
             exit 1;
           }
@@ -44,4 +44,3 @@ jobs:
       # 5️⃣ Success message
       - name: Success
         run: echo "✅ Fork successfully synced with upstream. Local commits preserved, simple conflicts auto-resolved."
-
