@@ -2,7 +2,7 @@ name: Upstream Sync AutoMerge
 
 on:
   schedule:
-    - cron: "0 */6 * * *" # 每 6 小时同步一次
+    - cron: "0 */6 * * *"
   workflow_dispatch:
 
 permissions:
@@ -14,33 +14,33 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      # 1️⃣ Checkout fork repository
       - name: Checkout fork
         uses: actions/checkout@v4
         with:
-          fetch-depth: 0  # 获取完整历史
+          fetch-depth: 0
 
-      # 2️⃣ Configure upstream
       - name: Add upstream remote
         run: |
           git remote add upstream https://github.com/senshinya/MoonTV.git || true
           git fetch upstream
 
-      # 3️⃣ Attempt auto merge upstream changes
+      # 🆕 解决 Git 提交身份问题
+      - name: Setup Git identity
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+
       - name: Auto merge upstream changes
         run: |
           git checkout main
-          # 尝试自动合并，优先保留 fork 本地修改，允许无关历史
           git merge upstream/main -X ours --allow-unrelated-histories -m "Auto-merge upstream/main into main" || {
             echo "⚠️ Complex merge conflict detected. Manual resolution required.";
             exit 1;
           }
 
-      # 4️⃣ Push merged changes if successful
       - name: Push merged changes
         run: |
           git push origin main
 
-      # 5️⃣ Success message
       - name: Success
         run: echo "✅ Fork successfully synced with upstream. Local commits preserved, simple conflicts auto-resolved."
